@@ -741,9 +741,11 @@ ${profile}
     if (!text) return;
 
     // ローディング表示
-    document.getElementById('reviewCard').style.display = 'block';
-    document.getElementById('reviewBody').textContent = '校閲・要約を処理中...';
-    document.getElementById('reviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('resultCard').classList.add('show');
+    document.getElementById('resultBody').textContent = '校閲中...';
+    document.getElementById('summaryCard').style.display = 'block';
+    document.getElementById('summaryBody').textContent = '要約を生成中...';
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -807,7 +809,7 @@ ${text}
       if (summaryMatch) {
         document.getElementById('summaryBody').textContent = summaryMatch[1].trim();
         document.getElementById('summaryCard').style.display = 'block';
-        document.getElementById('summaryCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
 
     } catch(e) {
