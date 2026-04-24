@@ -252,10 +252,29 @@
 
       <div class="result-card" id="resultCard">
         <div class="result-topbar">
-          <span>生成結果</span>
+          <span>校閲済み文章</span>
           <button class="copy-btn" id="copyBtn" onclick="copyText()">COPY</button>
         </div>
         <div class="result-body" id="resultBody"></div>
+
+      </div>
+
+      <!-- 校閲結果 -->
+      <div class="result-card" id="reviewCard" style="display:none; margin-top:16px;">
+        <div class="result-topbar">
+          <span>校閲済み文章</span>
+          <button class="copy-btn" id="copyReviewBtn" onclick="copyReview()">COPY</button>
+        </div>
+        <div class="result-body" id="reviewBody"></div>
+      </div>
+
+      <!-- 要約結果 -->
+      <div class="result-card" id="summaryCard" style="display:none; margin-top:16px;">
+        <div class="result-topbar">
+          <span>要約（300文字）</span>
+          <button class="copy-btn" id="copySummaryBtn" onclick="copySummary()">COPY</button>
+        </div>
+        <div class="result-body" id="summaryBody"></div>
       </div>
     </div>
 
@@ -689,13 +708,15 @@ ${profile}
   }
 
   function showResult(text) {
-    document.getElementById('resultBody').textContent = text;
-    const card = document.getElementById('resultCard');
-    card.classList.add('show');
-    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 生成後すぐに校閲・要約を自動実行
+    reviewAndSummarize(text);
   }
 
-  function hideResult() { document.getElementById('resultCard').classList.remove('show'); }
+  function hideResult() {
+    document.getElementById('resultCard').classList.remove('show');
+    document.getElementById('reviewCard').style.display = 'none';
+    document.getElementById('summaryCard').style.display = 'none';
+  }
 
   function showErr(msg) {
     const b = document.getElementById('errBox');
@@ -709,6 +730,107 @@ ${profile}
     const text = document.getElementById('resultBody').textContent;
     navigator.clipboard.writeText(text).then(() => {
       const btn = document.getElementById('copyBtn');
+      btn.textContent = 'COPIED ✓';
+      btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('ok'); }, 2000);
+    });
+  }
+
+  async function reviewAndSummarize(text) {
+    const apikey = localStorage.getItem('scout_apikey') || '';
+    if (!text) return;
+
+    // ローディング表示
+    document.getElementById('reviewCard').style.display = 'block';
+    document.getElementById('reviewBody').textContent = '校閲・要約を処理中...';
+    document.getElementById('reviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apikey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2048,
+          messages: [{
+            role: 'user',
+            content: `以下のスカウトメールについて2つのタスクを実行してください。
+
+【スカウトメール】
+${text}
+
+---
+
+# タスク1：校閲・修正
+- 文章として不自然な表現・誤字脱字・言い回しを修正してください
+- 全体のトーンや構成は変えず、自然で読みやすい文章に整えてください
+- 修正後の文章をそのまま出力してください（説明は不要）
+
+# タスク2：要約
+- 上記スカウトメールの内容を300文字程度で要約してください
+- 候補者が読んだときに要点がわかる内容にしてください
+
+# 出力形式（必ずこの形式で出力すること）
+【校閲済み文章】
+（修正後の文章をここに記載）
+
+【要約】
+（300文字程度の要約をここに記載）`
+          }]
+        })
+      });
+
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.error?.message || `APIエラー (${res.status})`);
+      }
+
+      const data = await res.json();
+      const result = data.content[0].text;
+
+      // 校閲済み文章と要約を分割
+      const reviewMatch = result.match(/【校閲済み文章】([\s\S]*?)(?=【要約】|$)/);
+      const summaryMatch = result.match(/【要約】([\s\S]*?)$/);
+
+      if (reviewMatch) {
+        document.getElementById('resultBody').textContent = reviewMatch[1].trim();
+        document.getElementById('resultCard').classList.add('show');
+        document.getElementById('reviewBody').textContent = reviewMatch[1].trim();
+        document.getElementById('reviewCard').style.display = 'none';
+      }
+
+      if (summaryMatch) {
+        document.getElementById('summaryBody').textContent = summaryMatch[1].trim();
+        document.getElementById('summaryCard').style.display = 'block';
+        document.getElementById('summaryCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+    } catch(e) {
+      showErr('校閲エラー：' + e.message);
+    } finally {
+      // 処理完了
+    }
+  }
+
+  function copyReview() {
+    const text = document.getElementById('reviewBody').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyReviewBtn');
+      btn.textContent = 'COPIED ✓';
+      btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('ok'); }, 2000);
+    });
+  }
+
+  function copySummary() {
+    const text = document.getElementById('summaryBody').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copySummaryBtn');
       btn.textContent = 'COPIED ✓';
       btn.classList.add('ok');
       setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('ok'); }, 2000);
