@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スカウト文生成ツール</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans JP', sans-serif; background: #F7F7F5; color: #1C1C1C; min-height: 100vh; }
+
+  /* ===== トップ画面 ===== */
+  #screen-top { padding: 48px 20px; }
+  .top-wrap { max-width: 680px; margin: 0 auto; }
+  .top-header { margin-bottom: 40px; }
+  .top-header h1 { font-size: 20px; font-weight: 700; }
+  .top-header p { font-size: 13px; color: #888; margin-top: 6px; font-weight: 300; }
+
+  .company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+
+  .company-card {
+    background: #fff;
+    border: 1px solid #DDDDD8;
+    border-radius: 6px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .company-card:hover { border-color: #1C1C1C; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .company-card-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .company-card-count { font-size: 11px; color: #999; font-family: 'DM Mono', monospace; }
+  .company-card-delete { position: absolute; top: 10px; right: 10px; font-size: 12px; color: #ccc; background: none; border: none; cursor: pointer; padding: 2px 4px; }
+  .company-card-delete:hover { color: #e53935; }
+
+  .add-company-card {
+    background: none;
+    border: 1px dashed #DDDDD8;
+    border-radius: 6px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #999;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .add-company-card:hover { border-color: #999; color: #555; }
+
+  /* ===== 会社ページ画面 ===== */
+  #screen-company { display: none; }
+
+  .company-header {
+    background: #1C1C1C;
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .back-btn {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: rgba(255,255,255,0.6);
+    background: none;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 3px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .back-btn:hover { color: #fff; border-color: rgba(255,255,255,0.5); }
+
+  .company-header-name { font-size: 16px; font-weight: 700; flex: 1; }
+
+  .company-body { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
+
+  /* タブ */
+  .tabs { display: flex; border-bottom: 2px solid #E0E0DC; margin-bottom: 28px; }
+  .tab { padding: 10px 22px; font-size: 13px; font-weight: 600; color: #999; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Noto Sans JP', sans-serif; }
+  .tab:hover { color: #555; }
+  .tab.active { color: #1C1C1C; border-bottom-color: #1C1C1C; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* 共通パーツ */
+  .section { margin-bottom: 24px; }
+  .section-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #999; margin-bottom: 10px; font-family: 'DM Mono', monospace; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: #666; font-weight: 500; }
+  .field input, .field select, .field textarea { font-family: 'Noto Sans JP', sans-serif; font-size: 14px; padding: 10px 12px; border: 1px solid #DDDDD8; border-radius: 4px; background: #fff; color: #1C1C1C; outline: none; transition: border-color 0.15s; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: #1C1C1C; }
+  .field textarea { min-height: 130px; resize: vertical; line-height: 1.75; }
+  .field select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+  .divider { height: 1px; background: #E8E8E4; margin: 24px 0; }
+
+  /* 求人リスト */
+  .job-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+  .job-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #fff; border: 1px solid #DDDDD8; border-radius: 4px; }
+  .job-item-info { flex: 1; min-width: 0; }
+  .job-item-title { font-size: 14px; font-weight: 600; }
+  .job-delete-btn { font-size: 11px; color: #ccc; background: none; border: none; cursor: pointer; padding: 4px; flex-shrink: 0; }
+  .job-delete-btn:hover { color: #e53935; }
+
+  .add-form { background: #fff; border: 1px dashed #DDDDD8; border-radius: 4px; padding: 18px; }
+  .add-form-title { font-size: 12px; font-weight: 700; color: #666; margin-bottom: 14px; }
+
+  /* ボタン */
+  .primary-btn { font-family: 'Noto Sans JP', sans-serif; font-size: 12px; font-weight: 600; padding: 8px 18px; border-radius: 3px; cursor: pointer; background: #1C1C1C; color: #fff; border: 1px solid #1C1C1C; transition: all 0.15s; }
+  .primary-btn:hover { background: #333; }
+  .ghost-btn { font-family: 'Noto Sans JP', sans-serif; font-size: 12px; font-weight: 600; padding: 8px 18px; border-radius: 3px; cursor: pointer; background: none; color: #666; border: 1px solid #DDD; transition: all 0.15s; }
+  .ghost-btn:hover { border-color: #999; color: #333; }
+
+  .generate-btn { width: 100%; padding: 14px; background: #1C1C1C; color: #fff; border: none; border-radius: 4px; font-family: 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.15s; }
+  .generate-btn:hover:not(:disabled) { background: #333; }
+  .generate-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box { display: none; margin-top: 14px; padding: 12px 16px; background: #FFF2F2; border: 1px solid #FFCDD2; border-radius: 4px; font-size: 13px; color: #B71C1C; }
+  .error-box.show { display: block; }
+
+  .result-card { display: none; margin-top: 28px; background: #fff; border: 1px solid #DDDDD8; border-radius: 4px; overflow: hidden; }
+  .result-card.show { display: block; }
+  .result-topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #EBEBEB; background: #FAFAF8; }
+  .result-topbar span { font-size: 11px; font-family: 'DM Mono', monospace; color: #999; letter-spacing: 1px; text-transform: uppercase; }
+  .copy-btn { font-size: 11px; font-family: 'DM Mono', monospace; color: #666; background: none; border: 1px solid #DDD; border-radius: 3px; padding: 4px 12px; cursor: pointer; transition: all 0.15s; letter-spacing: 1px; }
+  .copy-btn:hover { border-color: #999; color: #333; }
+  .copy-btn.ok { border-color: #4CAF50; color: #388E3C; }
+  .result-body { padding: 22px; font-size: 14px; line-height: 1.85; white-space: pre-wrap; word-break: break-word; }
+
+  .empty-msg { font-size: 13px; color: #aaa; text-align: center; padding: 20px 0; }
+
+  .selected-badge { display: none; align-items: center; gap: 8px; padding: 8px 12px; background: #F0F4FF; border: 1px solid #C5D3F0; border-radius: 4px; font-size: 12px; color: #3B5BDB; margin-bottom: 16px; }
+  .selected-badge.show { display: flex; }
+
+  .apikey-row { position: relative; }
+  .apikey-row input { width: 100%; font-family: 'DM Mono', monospace; font-size: 13px; padding-right: 64px; }
+  .show-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; font-family: 'DM Mono', monospace; color: #999; background: none; border: none; cursor: pointer; }
+  .show-btn:hover { color: #333; }
+
+  /* モーダル */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 6px; padding: 28px; width: 90%; max-width: 420px; }
+  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<!-- ===== トップ画面 ===== -->
+<div id="screen-top">
+  <div class="top-wrap">
+    <div class="top-header">
+      <h1>スカウト文 生成ツール</h1>
+      <p>会社を選んでスカウト文を生成します。</p>
+    </div>
+
+    <div class="section-label" style="margin-bottom:14px">会社を選択</div>
+    <div class="company-grid" id="companyGrid"></div>
+
+    <div style="margin-top:32px; padding-top:24px; border-top:1px solid #E8E8E4;">
+      <div class="section-label" style="margin-bottom:10px">設定</div>
+      <div class="field" style="max-width:400px">
+        <label>Claude API キー</label>
+        <div class="apikey-row">
+          <input type="password" id="apikeyTop" placeholder="sk-ant-..." />
+          <button class="show-btn" onclick="toggleKeyTop()">表示</button>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <button class="primary-btn" onclick="saveApiKey()">保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 会社ページ画面 ===== -->
+<div id="screen-company">
+  <div class="company-header">
+    <button class="back-btn" onclick="goTop()">← 戻る</button>
+    <div class="company-header-name" id="companyHeaderName"></div>
+  </div>
+
+  <div class="company-body">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('generate')">スカウト文を生成</button>
+      <button class="tab" onclick="switchTab('jobs')">求人票を管理</button>
+      <button class="tab" onclick="switchTab('info')">会社情報</button>
+    </div>
+
+    <!-- 生成タブ -->
+    <div class="tab-content active" id="tab-generate">
+      <div class="section">
+        <div class="section-label">送信者情報</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>会社名</label>
+            <input type="text" id="senderCompany" placeholder="例：株式会社〇〇" />
+          </div>
+          <div class="field">
+            <label>担当者名</label>
+            <input type="text" id="senderRecruiter" placeholder="例：山田 花子" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">求人票を選ぶ</div>
+        <div class="field">
+          <select id="jobSelect" onchange="onJobSelect()">
+            <option value="">-- 求人を選んでください --</option>
+          </select>
+        </div>
+        <div class="selected-badge" id="selectedBadge">
+          <span>✓ 選択中：</span><strong id="selectedJobName"></strong>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section">
+        <div class="section-label">候補者プロフィール</div>
+        <div class="field">
+          <label>Greenからコピーしたプロフィールを貼り付けてください</label>
+          <textarea id="profile" placeholder="例：
+氏名：田中 太郎
+年齢：28歳
+現職：Webエンジニア（3年）
+スキル：Python、React、AWS
+希望：フルスタックエンジニアとして成長したい"></textarea>
+        </div>
+      </div>
+
+      <button class="generate-btn" id="genBtn" onclick="generate()">
+        <div class="spinner" id="spinner"></div>
+        <span id="btnLabel">スカウト文を生成する</span>
+      </button>
+
+      <div class="error-box" id="errBox"></div>
+
+      <div class="result-card" id="resultCard">
+        <div class="result-topbar">
+          <span>生成結果</span>
+          <button class="copy-btn" id="copyBtn" onclick="copyText()">COPY</button>
+        </div>
+        <div class="result-body" id="resultBody"></div>
+      </div>
+    </div>
+
+    <!-- 求人票管理タブ -->
+    <div class="tab-content" id="tab-jobs">
+      <div class="section">
+        <div class="section-label">登録済み求人</div>
+        <div class="job-list" id="jobList"></div>
+      </div>
+      <div class="add-form">
+        <div class="add-form-title">＋ 新しい求人を追加</div>
+        <div class="field" style="margin-bottom:12px">
+          <label>求人タイトル</label>
+          <input type="text" id="newJobTitle" placeholder="例：プロダクトマネージャー" />
+        </div>
+        <div class="field" style="margin-bottom:12px">
+          <label>求人票の内容</label>
+          <textarea id="newJobDesc" placeholder="求人票のテキストをコピーして貼り付けてください"></textarea>
+        </div>
+        <button class="primary-btn" onclick="addJob()">追加する</button>
+      </div>
+    </div>
+
+    <!-- 会社情報タブ -->
+    <div class="tab-content" id="tab-info">
+      <div class="section">
+        <div class="section-label">会社・プロダクト情報</div>
+        <div class="field">
+          <label>事業内容・プロダクトの特徴・強みなど</label>
+          <textarea id="companyAppeal" style="min-height:160px" placeholder="例：
+・SaaS型の営業支援ツールを提供
+・導入企業数1,000社以上
+・シリーズBで10億円調達済み
+・20代〜30代中心のチーム構成"></textarea>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-label">働く環境・魅力</div>
+        <div class="field">
+          <label>リモート・チーム・成長環境・カルチャーなど</label>
+          <textarea id="companyEnv" style="min-height:160px" placeholder="例：
+・フルリモート可
+・フレックスタイム制
+・月1回の全社合宿
+・年2回の評価・昇給機会"></textarea>
+        </div>
+      </div>
+      <button class="primary-btn" onclick="saveCompanyInfo()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 会社追加モーダル -->
+<div class="modal-overlay" id="addCompanyModal">
+  <div class="modal">
+    <h3>会社を追加</h3>
+    <div class="field">
+      <label>会社名</label>
+      <input type="text" id="newCompanyName" placeholder="例：株式会社〇〇" />
+    </div>
+    <div class="modal-btns">
+      <button class="ghost-btn" onclick="closeModal()">キャンセル</button>
+      <button class="primary-btn" onclick="addCompany()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentCompanyId = null;
+
+  // ===== データ管理 =====
+  function loadData() {
+    try { return JSON.parse(localStorage.getItem('scout_data') || '{"companies":[]}'); }
+    catch { return { companies: [] }; }
+  }
+  function saveData(data) { localStorage.setItem('scout_data', JSON.stringify(data)); }
+
+  function getCompany(id) {
+    return loadData().companies.find(c => c.id === id);
+  }
+
+  function saveCompany(company) {
+    const data = loadData();
+    const idx = data.companies.findIndex(c => c.id === company.id);
+    if (idx >= 0) data.companies[idx] = company;
+    else data.companies.push(company);
+    saveData(data);
+  }
+
+  // ===== 初期化 =====
+  window.onload = function() {
+    const savedKey = localStorage.getItem('scout_apikey');
+    if (savedKey) document.getElementById('apikeyTop').value = savedKey;
+    renderCompanyGrid();
+  };
+
+  // ===== トップ画面 =====
+  function renderCompanyGrid() {
+    const data = loadData();
+    const grid = document.getElementById('companyGrid');
+    grid.innerHTML = '';
+
+    data.companies.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'company-card';
+      card.innerHTML = `
+        <button class="company-card-delete" onclick="deleteCompany(event,'${c.id}')">✕</button>
+        <div class="company-card-name">${escHtml(c.name)}</div>
+        <div class="company-card-count">${(c.jobs||[]).length}件の求人</div>
+      `;
+      card.onclick = () => openCompany(c.id);
+      grid.appendChild(card);
+    });
+
+    // 追加ボタン
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-company-card';
+    addBtn.innerHTML = '＋ 会社を追加';
+    addBtn.onclick = () => document.getElementById('addCompanyModal').classList.add('show');
+    grid.appendChild(addBtn);
+  }
+
+  function deleteCompany(e, id) {
+    e.stopPropagation();
+    if (!confirm('この会社を削除しますか？求人票・会社情報もすべて削除されます。')) return;
+    const data = loadData();
+    data.companies = data.companies.filter(c => c.id !== id);
+    saveData(data);
+    renderCompanyGrid();
+  }
+
+  function addCompany() {
+    const name = document.getElementById('newCompanyName').value.trim();
+    if (!name) return alert('会社名を入力してください。');
+    const data = loadData();
+    data.companies.push({ id: 'c' + Date.now(), name, jobs: [], appeal: '', env: '' });
+    saveData(data);
+    document.getElementById('newCompanyName').value = '';
+    closeModal();
+    renderCompanyGrid();
+  }
+
+  function closeModal() {
+    document.getElementById('addCompanyModal').classList.remove('show');
+  }
+
+  function toggleKeyTop() {
+    const el = document.getElementById('apikeyTop');
+    const btn = document.querySelector('.show-btn');
+    el.type = el.type === 'password' ? 'text' : 'password';
+    btn.textContent = el.type === 'password' ? '表示' : '隠す';
+  }
+
+  function saveApiKey() {
+    const key = document.getElementById('apikeyTop').value.trim();
+    if (!key) return alert('APIキーを入力してください。');
+    localStorage.setItem('scout_apikey', key);
+    alert('保存しました！');
+  }
+
+  // ===== 会社ページ =====
+  function openCompany(id) {
+    currentCompanyId = id;
+    const company = getCompany(id);
+    document.getElementById('screen-top').style.display = 'none';
+    document.getElementById('screen-company').style.display = 'block';
+    document.getElementById('companyHeaderName').textContent = company.name;
+
+    // 会社情報を読み込む
+    document.getElementById('companyAppeal').value = company.appeal || '';
+    document.getElementById('companyEnv').value = company.env || '';
+
+    switchTab('generate');
+    renderJobList();
+    renderJobSelect();
+  }
+
+  function goTop() {
+    currentCompanyId = null;
+    document.getElementById('screen-top').style.display = 'block';
+    document.getElementById('screen-company').style.display = 'none';
+    renderCompanyGrid();
+    // 入力をリセット
+    document.getElementById('profile').value = '';
+    hideResult();
+    hideErr();
+  }
+
+  function switchTab(name) {
+    const tabs = ['generate', 'jobs', 'info'];
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', tabs[i] === name));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'generate') renderJobSelect();
+    if (name === 'jobs') renderJobList();
+  }
+
+  // ===== 求人票管理 =====
+  function renderJobList() {
+    const company = getCompany(currentCompanyId);
+    const list = document.getElementById('jobList');
+    if (!company || !company.jobs || company.jobs.length === 0) {
+      list.innerHTML = '<div class="empty-msg">まだ求人が登録されていません</div>';
+      return;
+    }
+    list.innerHTML = company.jobs.map((j, i) => `
+      <div class="job-item">
+        <div class="job-item-info">
+          <div class="job-item-title">${escHtml(j.title)}</div>
+        </div>
+        <button class="job-delete-btn" onclick="deleteJob(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function addJob() {
+    const title = document.getElementById('newJobTitle').value.trim();
+    const desc  = document.getElementById('newJobDesc').value.trim();
+    if (!title) return alert('求人タイトルを入力してください。');
+    if (!desc)  return alert('求人票の内容を入力してください。');
+
+    const company = getCompany(currentCompanyId);
+    if (!company.jobs) company.jobs = [];
+    company.jobs.push({ title, desc });
+    saveCompany(company);
+
+    document.getElementById('newJobTitle').value = '';
+    document.getElementById('newJobDesc').value = '';
+    renderJobList();
+    renderJobSelect();
+  }
+
+  function deleteJob(index) {
+    if (!confirm('この求人を削除しますか？')) return;
+    const company = getCompany(currentCompanyId);
+    company.jobs.splice(index, 1);
+    saveCompany(company);
+    renderJobList();
+    renderJobSelect();
+  }
+
+  // ===== 会社情報保存 =====
+  function saveCompanyInfo() {
+    const company = getCompany(currentCompanyId);
+    company.appeal = document.getElementById('companyAppeal').value.trim();
+    company.env    = document.getElementById('companyEnv').value.trim();
+    saveCompany(company);
+    alert('保存しました！');
+  }
+
+  // ===== 求人選択 =====
+  function renderJobSelect() {
+    const company = getCompany(currentCompanyId);
+    const sel = document.getElementById('jobSelect');
+    sel.innerHTML = '<option value="">-- 求人を選んでください --</option>';
+    (company?.jobs || []).forEach((j, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = j.title;
+      sel.appendChild(opt);
+    });
+    onJobSelect();
+  }
+
+  function onJobSelect() {
+    const sel = document.getElementById('jobSelect');
+    const badge = document.getElementById('selectedBadge');
+    const nameEl = document.getElementById('selectedJobName');
+    if (sel.value === '') { badge.classList.remove('show'); return; }
+    const company = getCompany(currentCompanyId);
+    nameEl.textContent = company.jobs[parseInt(sel.value)].title;
+    badge.classList.add('show');
+  }
+
+  // ===== スカウト文生成 =====
+  async function generate() {
+    const apikey    = localStorage.getItem('scout_apikey') || '';
+    const senderCo  = document.getElementById('senderCompany').value.trim();
+    const recruiter = document.getElementById('senderRecruiter').value.trim();
+    const profile   = document.getElementById('profile').value.trim();
+    const jobIdx    = document.getElementById('jobSelect').value;
+
+    hideErr(); hideResult();
+
+    if (!apikey)    return showErr('トップ画面でAPIキーを保存してください。');
+    if (!senderCo)  return showErr('会社名を入力してください。');
+    if (!recruiter) return showErr('担当者名を入力してください。');
+    if (jobIdx === '') return showErr('求人票を選んでください。');
+    if (!profile)   return showErr('候補者プロフィールを入力してください。');
+
+    const company = getCompany(currentCompanyId);
+    const job = company.jobs[parseInt(jobIdx)];
+    const appeal = company.appeal || '';
+    const env    = company.env || '';
+
+    setLoading(true);
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apikey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          messages: [{
+            role: 'user',
+            content: `あなたは採用のプロです。
+以下の情報をもとに、スカウトメールを作成してください。
+出力は「件名：」から始め、冒頭に見出しは一切つけないこと。
+
+【送信者情報】
+会社名：${senderCo}
+担当者名：${recruiter}
+
+【求人票】
+求人タイトル：${job.title}
+${job.desc}
+
+【会社・プロダクト情報】
+${appeal || '（未登録）'}
+
+【働く環境・魅力】
+${env || '（未登録）'}
+
+【候補者プロフィール】
+${profile}
+
+---
+
+# 本文の構成（この順番で作成すること）
+①あいさつ・会社名・担当者名
+②プロフィールを見て魅力的に感じた内容（下記「記載ルール」に従う）
+③当社の紹介（会社・プロダクト情報と働く環境を活用し、候補者の希望する環境に合う内容を記載）
+④カジュアル面談の依頼
+
+# 注意点
+- 候補者の経歴を分析し、特筆すべき点を抽出する
+- 候補者の希望条件を理解し、それに応じた提案を行う
+- 候補者にとって魅力的な言葉を用いて、個別にカスタマイズされたメッセージを作成する
+- メールのトーンやスタイルを統一しつつ、個々の候補者に合ったアプローチを取る
+- 「候補者様」という言葉は使わない
+- なるべく候補者名を使った表現をしない
+
+# 記載のルール（②の部分）
+候補者のキャリア情報を分析し、以下の3パターンのうち最も適切なものを1つ選んで200字で記載すること。
+
+1. 職種の深さ（実績・成果）重視パターン
+   - 具体的な職務内容や成果に重点を置き、候補者が目標達成に寄与した点を強調する
+
+2. 職種の幅 重視パターン
+   - 様々な職務経験や異業界での役割を強調し、多様な環境での適応力や柔軟性をアピールする
+
+3. マネジメントをほめるパターン
+   - チームを指導し、プロジェクト成功に導いた経験やリーダーシップスキルを強調する
+
+# 参考フォーマット（②の部分）
+- 職種の深さパターン：「●●で培われてきた豊富な業務経験と、各種プロジェクトにおいて事業推進力を発揮されてきたご経歴に注目し、スカウトメールをお送りいたしました。特に、売上目標の達成や顧客満足度向上といった成果を創出されてきたご実績に魅力を感じました。」
+- 職種の幅パターン：「●●の職務経験と、異業界や異なる役割での豊富なご経験をお持ちであるご経歴に着目し、スカウトメールをお送りいたしました。特に、異なる領域での柔軟なアプローチスキルや、課題解決力を活かして成果を上げられてきたご経験に魅力を感じております。」
+- マネジメントパターン：「●●でリーダーシップを発揮され、チームを成功に導いてこられたご経歴に目が留まり、スカウトメールをお送りいたしました。特に、チームメンバーの育成やプロジェクトの管理に携わり、目標達成にコミットされてきたご経験が非常に印象的でした。」
+
+# 必須表現（必ず含めること）
+- 「●●のご経歴に目が止まり、スカウトメールをお送りさせていただきました。」
+- 「●●に大変魅力を感じております。」
+- 「これまでのキャリアで培われてきた●●を活かしつつ、当社の${job.title}としてご活躍いただける可能性が高いのではないかとお見受けしております。」
+
+# NG表現（絶対に使わないこと）
+- 「ぜひお話を伺いたいと存じます。」
+- 「確信しております。」
+- 「ご活躍が期待されます。」
+- 「期待しております。」
+- 「願っております。」
+- 「うかがえます。」
+
+# 社名・敬称の表現
+- 本文中で会社名を使う場合は「●●社」の形式で記載する
+- 候補者の名前や「貴殿」という表現を避け、自然な言い回しで作成する
+
+# 出力形式
+- 件名と本文をセットで出力する
+- 件名に「【スカウト】」などの記号・タグは一切つけないこと
+- 本文は700文字以内に収めること
+- 「件名：〇〇」から始めて、そのまま本文に続けること
+- カジュアル面談の依頼文は必ず「平日10:00〜20:00までのお時間で、ご都合の良い日程をお知らせください。」という一文を含めること
+- 署名は「${senderCo}　採用担当　${recruiter}」の形式で`
+          }]
+        })
+      });
+
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.error?.message || `APIエラー (${res.status})`);
+      }
+
+      const data = await res.json();
+      showResult(data.content[0].text);
+
+    } catch(e) {
+      showErr('エラーが発生しました：' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function setLoading(on) {
+    document.getElementById('genBtn').disabled = on;
+    document.getElementById('spinner').style.display = on ? 'block' : 'none';
+    document.getElementById('btnLabel').textContent = on ? '生成中...' : 'スカウト文を生成する';
+  }
+
+  function showResult(text) {
+    document.getElementById('resultBody').textContent = text;
+    const card = document.getElementById('resultCard');
+    card.classList.add('show');
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function hideResult() { document.getElementById('resultCard').classList.remove('show'); }
+
+  function showErr(msg) {
+    const b = document.getElementById('errBox');
+    b.textContent = msg;
+    b.classList.add('show');
+  }
+
+  function hideErr() { document.getElementById('errBox').classList.remove('show'); }
+
+  function copyText() {
+    const text = document.getElementById('resultBody').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'COPIED ✓';
+      btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('ok'); }, 2000);
+    });
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
